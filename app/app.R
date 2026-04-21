@@ -68,15 +68,15 @@ ui <- page_fillable(
     
     div(class = "stat2",
         card(
-          card_header("Electors"),
-          card_body(textOutput("Electors (2023)"))
+          card_header("Electors (2023)"),
+          card_body(textOutput("Electors"))
         )
     ),
     
     div(div = "stats3",
         card(
-          card_header("Turnout"),
-          card_body(textOutput("Turnout (2023)"))
+          card_header("Turnout (2023)"),
+          card_body(textOutput("Turnout"))
         )
     )
   ),
@@ -174,7 +174,7 @@ server <- function(input, output, session) {
   
   # Electors
   output$Electors <- renderText({
-    req(!is.null(clickedWard()))
+  req(!is.null(clickedWard()))
     Election23Results |>
       filter(wd25nm == clickedWard()) |>
       select(electors) |>
@@ -186,7 +186,7 @@ server <- function(input, output, session) {
   
   #Turnout
   output$Turnout <- renderText({
-    req(!is.null(clickedWard()))
+  req(!is.null(clickedWard()))
     Percentage <- Election23Results |>
       filter(wd25nm == clickedWard()) |>
       select(turnout) |>
