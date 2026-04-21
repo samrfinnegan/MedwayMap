@@ -1,0 +1,94 @@
+@font-face {
+  font-family: 'Bebas Neue';
+  src: url('BebasNeue-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Manrope';
+  src: url('Manrope-VariableFont_wght.ttf') format('truetype');
+}
+
+p {
+  font-family: "Manrope";
+  margin-top: 0;
+  margin-bottom: 1rem;
+}
+
+h1, h2, h3, h4, h5 {
+  font-family: "Bebas Neue";
+}
+
+h2 {
+  font-size: 2rem;
+}
+
+.header-block {
+  display: block;
+  color: #ffffff;
+  background-color: #00643b;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.btn{
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  font-family: "Manrope";
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  background: transparent;
+  color: #00643b;
+  border: 2px solid #00a85a);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-decoration: none !important;
+}
+
+.btn-outline-primary {
+    --bs-btn-color: #00643b;
+    --bs-btn-border-color: #00a85a;
+    --bs-btn-hover-color: #ffffff;
+    --bs-btn-hover-bg: #00643b;
+    --bs-btn-hover-border-color: #00643b;
+    --bs-btn-active-color: #ffffff;
+    --bs-btn-active-bg: #00643b;
+    --bs-btn-active-border-color: #00643b;
+    --bs-btn-active-shadow: inset 0 3px 5px rgba(0,0,0,0.125);
+    --bs-btn-disabled-color: ##00643b;
+    --bs-btn-disabled-bg: transparent;
+    --bs-btn-disabled-border-color: #00643b;
+    --bs-btn-bg: transparent;
+    --bs-gradient: none;
+}
+
+
+.bslib-card {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none !important;
+  color: #333333 !important;
+  box-shadow: 0 14px 40px rgba(0,100,59,0.13);
+  border: 1.5px solid #00a85a;
+  position: relative;
+  height: auto;
+}
+
+body {
+    margin: 0;
+    font-family: "Manrope";
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--bs-body-color);
+    background-color: #ffffff;
+    -webkit-text-size-adjust: 100%;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
