@@ -12,6 +12,7 @@ library(sf)
 library(qs2)
 library(shiny)
 library(shinyWidgets)
+library(shinyjs)
 library(bslib)
 library(reactable)
 library(reactablefmtr)
@@ -24,6 +25,8 @@ qs_readm("./data/Election23Results.qs2")
 # UI ---------------------------------------------------------------------------
 
 ui <- page_fillable(
+  
+  useShinyjs(),
   
   # Add style sheet
   tags$head(
@@ -92,7 +95,11 @@ ui <- page_fillable(
              card_header("Election Results (2023)"),
              card_body(
                height = 400,
-               reactableOutput(outputId = "Election23Table")
+               hidden(radioGroupButtons(inputId = "select_view_past",
+                                        label = "",
+                                        choices = c("PARTY", "COUNCILLORS"),
+                                        selected = "PARTY")),
+               uiOutput(outputId = "PastTable")
              ),
         )
     ),
@@ -103,7 +110,11 @@ ui <- page_fillable(
              card_header("Projected Result (2026)"),
              card_body(
                height = 400,
-               reactableOutput(outputId = "ProjectedTable")
+               hidden(radioGroupButtons(inputId = "select_view_future",
+                                        label = "",
+                                        choices = c("PARTY", "COUNCILLORS"),
+                                        selected = "PARTY")),
+               uiOutput(outputId = "FutureTable")
              )
         )
     )
@@ -142,6 +153,8 @@ server <- function(input, output, session) {
   observeEvent(input$Map_shape_click, {
     click <- input$Map_shape_click
     clickedWard(click$id)
+    shinyjs::show(id = "select_view_past")
+    shinyjs::show(id = "select_view_future")
     
     leafletProxy("Map", session) |>
       
@@ -174,7 +187,7 @@ server <- function(input, output, session) {
   
   # Electors
   output$Electors <- renderText({
-  req(!is.null(clickedWard()))
+    req(!is.null(clickedWard()))
     Election23Results |>
       filter(wd25nm == clickedWard()) |>
       select(electors) |>
@@ -186,11 +199,13 @@ server <- function(input, output, session) {
   
   #Turnout
   output$Turnout <- renderText({
-  req(!is.null(clickedWard()))
+    req(!is.null(clickedWard()))
     Percentage <- Election23Results |>
       filter(wd25nm == clickedWard()) |>
-      select(turnout) |>
+      select(turnout, electors) |>
       unique() |>
+      mutate(turnout_percent = turnout/electors) |>
+      select(turnout_percent) |>
       as.numeric()
     
     Percentage <- round(Percentage*100, 1)
@@ -201,7 +216,6 @@ server <- function(input, output, session) {
     
   })
   
-  
   # Elections 2023 reactive filter
   PastResults <- reactive({
     
@@ -209,18 +223,82 @@ server <- function(input, output, session) {
     
     Election23Results |>
       filter(wd25nm == clickedWard()) |>
-      select(candidate, party, votes, percent_of_electors, colour, text_colour) |>
-      arrange(desc(percent_of_electors))
+      select(councillors, party, votes, vote_percent, colour, text_colour) |>
+      arrange(desc(vote_percent))
     
   })
   
   
-  # Election 2023 results table
-  output$Election23Table <- renderReactable({
+  # Election result table in a renderUI
+  output$PastTable <- renderUI({
+    validate(
+      need(!is.null(clickedWard()), "Click a ward to display data")
+    )
+    
+    if (input$select_view_past == "PARTY") {
+      
+      reactableOutput(outputId = "Election23TableParty")
+      
+      
+    } else if (input$select_view_past == "COUNCILLORS") {
+      
+      reactableOutput(outputId = "Election23TableCouncillors")
+      
+    } else {
+      
+    }
+    
+  })
+  
+  
+  # Election 2023 results table - By party
+  output$Election23TableParty <- renderReactable({
     
     validate(
       need(!is.null(clickedWard()), "Click a ward to display data")
     )
+    
+    df <- PastResults() |>
+      group_by(party, colour, text_colour) |>
+      summarise(votes = sum(votes)) |>
+      ungroup() |>
+      mutate(vote_percent = votes/sum(votes))
+    
+    
+    reactable(df,
+              style = list(fontFamily = "Manrope", fontSize = "1rem"),
+              highlight = TRUE,
+              borderless = TRUE,
+              defaultPageSize = nrow(df),
+              defaultSorted = list(vote_percent = "desc"),
+              columns = list(
+                party = colDef(name = "PARTY",
+                               minWidth = 120,
+                               maxWidth = 300),
+                votes = colDef(name = "VOTES",
+                               minWidth = 70,
+                               maxWidth = 100),
+                vote_percent = colDef(name = "VOTE SHARE",
+                                      minWidth = 200,
+                                      cell = data_bars(df,
+                                                       text_color_ref = "text_colour",
+                                                       brighten_text = FALSE,
+                                                       text_position = "inside-base",
+                                                       bold_text = TRUE,
+                                                       max_value = 1,
+                                                       bar_height = 25,
+                                                       background = "#ffffff",
+                                                       fill_color_ref = "colour",
+                                                       align_bars = "left",
+                                                       number_fmt = scales::percent_format(accuracy = 0.1))),
+                colour = colDef(show = FALSE),
+                text_colour = colDef(show = FALSE))
+    )
+    
+  })
+  
+  # Election 2023 results table - By councillors
+  output$Election23TableCouncillors <- renderReactable({
     
     df <- PastResults()
     
@@ -230,35 +308,37 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(percent_of_electors = "desc"),
+              defaultSorted = list(vote_percent = "desc"),
               columns = list(
-                candidate = colDef(name = "CANDIDATE",
-                                   minWidth = 100,
-                                   maxWidth = 300),
+                councillors = colDef(name = "councillors",
+                                     minWidth = 100,
+                                     maxWidth = 300),
                 party = colDef(name = "PARTY",
-                               minWidth = 100,
+                               minWidth = 120,
                                maxWidth = 300),
                 votes = colDef(name = "VOTES",
-                               minWidth = 50,
+                               minWidth = 70,
                                maxWidth = 100),
-                percent_of_electors = colDef(name = "SHARE OF ELECTORATE",
-                                             minWidth = 200,
-                                             cell = data_bars(df,
-                                                              text_color_ref = "text_colour",
-                                                              brighten_text = FALSE,
-                                                              text_position = "inside-base",
-                                                              bold_text = TRUE,
-                                                              max_value = 1,
-                                                              bar_height = 25,
-                                                              background = "#ffffff",
-                                                              fill_color_ref = "colour",
-                                                              align_bars = "left",
-                                                              number_fmt = scales::percent_format(accuracy = 0.1))),
+                vote_percent = colDef(name = "VOTE SHARE",
+                                      minWidth = 200,
+                                      cell = data_bars(df,
+                                                       text_color_ref = "text_colour",
+                                                       brighten_text = FALSE,
+                                                       text_position = "inside-base",
+                                                       bold_text = TRUE,
+                                                       max_value = 1,
+                                                       bar_height = 25,
+                                                       background = "#ffffff",
+                                                       fill_color_ref = "colour",
+                                                       align_bars = "left",
+                                                       number_fmt = scales::percent_format(accuracy = 0.1))),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )
     
   })
+  
+  
   
   # Projected 2026 reactive filter
   FutureResults <- reactive({
@@ -267,14 +347,82 @@ server <- function(input, output, session) {
     
     Election23Results |>
       filter(wd25nm == clickedWard()) |>
-      select(candidate, party, votes_2, percent_of_electorate, colour, text_colour) |>
-      arrange(desc(percent_of_electorate))
+      select(councillors, party, projected_votes, projected_vote_percent, colour, text_colour) |>
+      arrange(desc(projected_vote_percent))
     
   })
   
   
-  # Projected election results table
-  output$ProjectedTable <- renderReactable({
+  # Election result table in a renderUI
+  output$FutureTable <- renderUI({
+    validate(
+      need(!is.null(clickedWard()), "Click a ward to display data")
+    )
+    
+    if (input$select_view_future == "PARTY") {
+      
+      reactableOutput(outputId = "ProjectedTableParty")
+      
+      
+    } else if (input$select_view_future == "COUNCILLORS") {
+      
+      reactableOutput(outputId = "ProjectedTableCouncillors")
+      
+    } else {
+      
+    }
+    
+  })
+  
+  # Projected election results table - party
+  output$ProjectedTableParty <- renderReactable({
+    
+    validate(
+      need(!is.null(clickedWard()), "Click a ward to display data")
+    )
+    
+    df <- FutureResults() |>
+      group_by(party, colour, text_colour) |>
+      summarise(projected_votes = sum(projected_votes)) |>
+      ungroup() |>
+      mutate(projected_vote_percent = projected_votes/sum(projected_votes))
+    
+    
+    reactable(df,
+              style = list(fontFamily = "Manrope", fontSize = "1rem"),
+              highlight = TRUE,
+              borderless = TRUE,
+              defaultPageSize = nrow(df),
+              defaultSorted = list(projected_vote_percent = "desc"),
+              columns = list(
+                party = colDef(name = "PARTY",
+                               minWidth = 120,
+                               maxWidth = 300),
+                projected_votes = colDef(name = "VOTES",
+                                         minWidth = 70,
+                                         maxWidth = 100,
+                                         format = colFormat(digits = 0)),
+                projected_vote_percent = colDef(name = "VOTE SHARE",
+                                                minWidth = 200,
+                                                cell = data_bars(df,
+                                                                 text_color_ref = "text_colour",
+                                                                 brighten_text = FALSE,
+                                                                 text_position = "inside-base",
+                                                                 bold_text = TRUE,
+                                                                 max_value = 1,
+                                                                 bar_height = 25,
+                                                                 background = "#ffffff",
+                                                                 fill_color_ref = "colour",
+                                                                 align_bars = "left",
+                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
+                colour = colDef(show = FALSE),
+                text_colour = colDef(show = FALSE))
+    )
+    
+  })
+  
+  # Projected election results table - councillors
+  output$ProjectedTableCouncillors <- renderReactable({
     
     validate(
       need(!is.null(clickedWard()), "Click a ward to display data")
@@ -288,31 +436,31 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(percent_of_electorate = "desc"),
+              defaultSorted = list(projected_vote_percent = "desc"),
               columns = list(
-                candidate = colDef(name = "CANDIDATE",
-                                   minWidth = 100,
-                                   maxWidth = 300),
+                councillors = colDef(name = "CANDIDATE",
+                                     minWidth = 100,
+                                     maxWidth = 300),
                 party = colDef(name = "PARTY",
-                               minWidth = 100,
+                               minWidth = 120,
                                maxWidth = 300),
-                votes_2 = colDef(name = "VOTES",
-                                 minWidth = 50,
-                                 maxWidth = 100,
-                                 format = colFormat(digits = 0)),
-                percent_of_electorate = colDef(name = "SHARE OF ELECTORATE",
-                                               minWidth = 200,
-                                               cell = data_bars(df,
-                                                                text_color_ref = "text_colour",
-                                                                brighten_text = FALSE,
-                                                                text_position = "inside-base",
-                                                                bold_text = TRUE,
-                                                                max_value = 1,
-                                                                bar_height = 25,
-                                                                background = "#ffffff",
-                                                                fill_color_ref = "colour",
-                                                                align_bars = "left",
-                                                                number_fmt = scales::percent_format(accuracy = 0.1))),
+                projected_votes = colDef(name = "VOTES",
+                                         minWidth = 70,
+                                         maxWidth = 100,
+                                         format = colFormat(digits = 0)),
+                projected_vote_percent = colDef(name = "VOTE SHARE",
+                                                minWidth = 200,
+                                                cell = data_bars(df,
+                                                                 text_color_ref = "text_colour",
+                                                                 brighten_text = FALSE,
+                                                                 text_position = "inside-base",
+                                                                 bold_text = TRUE,
+                                                                 max_value = 1,
+                                                                 bar_height = 25,
+                                                                 background = "#ffffff",
+                                                                 fill_color_ref = "colour",
+                                                                 align_bars = "left",
+                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )

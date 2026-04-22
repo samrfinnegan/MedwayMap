@@ -8,6 +8,7 @@
 rm(list=ls())
 library(tidyverse)
 library(janitor)
+library(sf)
 library(qs2)
 library(openxlsx)
 
@@ -43,66 +44,86 @@ qs_savem(Wards,
 
 # Read in data from previous election ------------------------------------------
 
-SheetNames <- getSheetNames("./Data/Stats/2023 results and national trend model.xlsx")
+# Note needed anymore because there's a summary sheet. Derp
+# SheetNames <- getSheetNames("./Data/Stats/2023 results and national trend model.xlsx")
+# 
+# Election23Results <- data.frame()
+# # Cleaning data
+# for (i in 1:24) {
+#   
+#   # Read in most data
+#   Sheet <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
+#                      sheet = i,
+#                      startRow = 6) |>
+#     clean_names()
+#   
+#   # Read in number of electors from cell B1
+#   Electors <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
+#                         sheet = i,
+#                         rows = 1,
+#                         cols = 2) |>
+#     colnames() |>
+#     as.numeric()
+#   
+#   # Read in turnout from cell B3
+#   Turnout <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
+#                        sheet = i,
+#                        rows = 3,
+#                        cols = 2) |>
+#     colnames() |>
+#     as.numeric()
+#   
+#   # Combine Sheet with electors and turnout, 
+#   Sheet <- Sheet |>
+#     mutate(electors = Electors,
+#            turnout = Turnout,
+#            wd25nm = SheetNames[i])
+#   
+#   Election23Results <- Election23Results |>
+#     rbind(Sheet)
+#   
+# }
+# 
+# # Make a couple of names match
+# Election23Results <- Election23Results |>
+#   mutate(party = case_when(party == "Labour and Co-operative Party" ~ "Labour Party",
+#                            party == "Conservative Party candidate" ~ "Conservative Party",
+#                            party == "Local Conservatives" ~ "Conservative Party",
+#                            TRUE ~ party),
+#          wd25nm = case_when(wd25nm == "Hoo St W & High Halstow" ~ "Hoo St Werburgh & High Halstow",
+#                             wd25nm == "Strood N & Frindsbury" ~ "Strood North & Frindsbury",
+#                             TRUE ~ wd25nm),
+#          colour = case_when(party == "Labour Party" ~ "#E4003B",
+#                             party == "Conservative Party" ~ "#0087DC",
+#                             party == "Green Party" ~ "#00643B",
+#                             party == "Liberal Democrats" ~ "#FF6400",
+#                             party == "Reform UK" ~ "#12B6CF",
+#                             party == "Independent" ~ "#ABABAB",
+#                             party == "Social Democratic Party" ~ "#6C2f56",
+#                             party == "Christian Peoples Alliance" ~ "#6142A3",
+#                             party == "Heritage Party" ~ "#0A00A5"),
+#          percent_of_votes = percent_of_votes/100,
+#          percent_of_electors = percent_of_electors/100,
+#          percent_of_electorate = percent_of_electorate/100,
+#          text_colour = "#000000")
 
-Election23Results <- data.frame()
-# Cleaning data
-for (i in 1:24) {
-  
-  # Read in most data
-  Sheet <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
-                     sheet = i,
-                     startRow = 6) |>
-    clean_names()
-  
-  # Read in number of electors from cell B1
-  Electors <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
-                        sheet = i,
-                        rows = 1,
-                        cols = 2) |>
-    colnames() |>
-    as.numeric()
-  
-  # Read in turnout from cell B3
-  Turnout <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
-                       sheet = i,
-                       rows = 3,
-                       cols = 2) |>
-    colnames() |>
-    as.numeric()
-  
-  # Combine Sheet with electors and turnout, 
-  Sheet <- Sheet |>
-    mutate(electors = Electors,
-           turnout = Turnout,
-           wd25nm = SheetNames[i])
-  
-  Election23Results <- Election23Results |>
-    rbind(Sheet)
-  
-}
-
-# Make a couple of names match
-Election23Results <- Election23Results |>
-  mutate(party = case_when(party == "Labour and Co-operative Party" ~ "Labour Party",
-                           party == "Conservative Party candidate" ~ "Conservative Party",
-                           party == "Local Conservatives" ~ "Conservative Party",
-                           TRUE ~ party),
-         wd25nm = case_when(wd25nm == "Hoo St W & High Halstow" ~ "Hoo St Werburgh & High Halstow",
-                            wd25nm == "Strood N & Frindsbury" ~ "Strood North & Frindsbury",
-                            TRUE ~ wd25nm),
-         colour = case_when(party == "Labour Party" ~ "#E4003B",
-                            party == "Conservative Party" ~ "#0087DC",
-                            party == "Green Party" ~ "#00643B",
-                            party == "Liberal Democrats" ~ "#FF6400",
-                            party == "Reform UK" ~ "#12B6CF",
-                            party == "Independent" ~ "#ABABAB",
-                            party == "Social Democratic Party" ~ "#6C2f56",
-                            party == "Christian Peoples Alliance" ~ "#6142A3",
-                            party == "Heritage Party" ~ "#0A00A5"),
-         percent_of_votes = percent_of_votes/100,
-         percent_of_electors = percent_of_electors/100,
-         percent_of_electorate = percent_of_electorate/100,
+Election23Results <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
+                               sheet = "Summary") |>
+  clean_names() |>
+  rename(wd25nm = ward,
+         electors = registered_electors) |>
+  mutate(party = case_when(party == "Liberal Democrats" ~ "Lib Dems",
+                           TRUE ~ party)) |>
+  mutate(colour = case_when(party == "Independent" ~ "#ABABAB",
+                           party == "Conservative" ~ "#0087DC",
+                           party == "Labour" ~ "#E4003B",
+                           party == "Reform" ~ "#12B6CF",
+                           party == "Green" ~ "#00643B",
+                           party == "Lib Dems" ~ "#FF6400",
+                           party == "Labour Co-op" ~ "#E4003B",
+                           party == "SDP" ~ "#6C2F56",
+                           party == "CPA" ~ "#6142A3",
+                           party == "Heritage" ~ "#0A00A5"),
          text_colour = "#000000")
 
 # Save
