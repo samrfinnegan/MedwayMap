@@ -35,13 +35,6 @@ LSOA <- LSOAIMD |>
   left_join(LSOALookup, by = c("lsoa21cd", "lsoa21nm")) |>
   filter(lad25nm == "Medway")
 
-# Save 
-rm(LSOALookup, LSOAIMD)
-qs_savem(Wards,
-         LSOA,
-         file = "C:/RProjects/MedwayMap/app/data/MapData.qs2")
-
-
 # Read in data from previous election ------------------------------------------
 
 # Note needed anymore because there's a summary sheet. Derp
@@ -107,6 +100,7 @@ qs_savem(Wards,
 #          percent_of_electorate = percent_of_electorate/100,
 #          text_colour = "#000000")
 
+# Election data cleaning -------------------------------------------------------
 Election23Results <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
                                sheet = "Summary") |>
   clean_names() |>
@@ -115,17 +109,84 @@ Election23Results <- read.xlsx("./Data/Stats/2023 results and national trend mod
   mutate(party = case_when(party == "Liberal Democrats" ~ "Lib Dems",
                            TRUE ~ party)) |>
   mutate(colour = case_when(party == "Independent" ~ "#ABABAB",
-                           party == "Conservative" ~ "#0087DC",
-                           party == "Labour" ~ "#E4003B",
-                           party == "Reform" ~ "#12B6CF",
-                           party == "Green" ~ "#00643B",
-                           party == "Lib Dems" ~ "#FF6400",
-                           party == "Labour Co-op" ~ "#E4003B",
-                           party == "SDP" ~ "#6C2F56",
-                           party == "CPA" ~ "#6142A3",
-                           party == "Heritage" ~ "#0A00A5"),
+                            party == "Conservative" ~ "#0087DC",
+                            party == "Labour" ~ "#E4003B",
+                            party == "Reform" ~ "#12B6CF",
+                            party == "Green" ~ "#00643B",
+                            party == "Lib Dems" ~ "#FF6400",
+                            party == "Labour Co-op" ~ "#E4003B",
+                            party == "SDP" ~ "#6C2F56",
+                            party == "CPA" ~ "#6142A3",
+                            party == "Heritage" ~ "#0A00A5"),
          text_colour = "#000000")
 
-# Save
-qs_savem(Election23Results,
-         file = "./app/data/Election23Results.qs2")
+# Read in the number of councillors in each ward
+# This can come from each sheet, so read in a loop
+SheetNames <- getSheetNames("./Data/Stats/2023 results and national trend model.xlsx")
+
+NumCouncillorsLookup <- data.frame()
+
+# Loop over ward sheets, avoiding national and summary
+for (i in 1:24) {
+  
+  # Ward
+  wd25nm <- SheetNames[i]
+  
+  # Councillor number always in cell B2
+  number_councillors <- read.xlsx("./Data/Stats/2023 results and national trend model.xlsx",
+                                  sheet = i,
+                                  rows = 2,
+                                  cols = 2) |>
+    colnames() |>
+    as.numeric()
+  
+  sheet <- c(wd25nm, number_councillors)
+  
+  NumCouncillorsLookup <- NumCouncillorsLookup |> rbind(sheet)
+  rm(wd25nm, number_councillors, sheet)
+  
+}
+
+# Some tidying up before join
+colnames(NumCouncillorsLookup) <- c("wd25nm", "number_councillors")
+NumCouncillorsLookup <- NumCouncillorsLookup |>
+  mutate(wd25nm = case_when(wd25nm == "Hoo St W & High Halstow" ~ "Hoo St Werburgh & High Halstow",
+                            wd25nm == "Strood N & Frindsbury" ~ "Strood North & Frindsbury",
+                            TRUE ~ wd25nm))
+
+# Join
+Election23Results <- Election23Results |> left_join(NumCouncillorsLookup)
+
+
+# Member to ward analysis cleaning ---------------------------------------------
+
+M2W <- read.xlsx("./Data/Stats/Member to Ward Target Analysis - 190326.xlsx",
+                 sheet = 1,
+                 startRow = 4) |>
+  clean_names() |>
+  select(wd25nm, average_residents_per_member) |>
+  mutate(average_residents_per_member = case_when(average_residents_per_member == 0 ~ NA,
+                                                  TRUE ~ average_residents_per_member),
+         rank = rank(average_residents_per_member,
+                     na.last = TRUE,
+                     ties.method = "min"),
+         rank_word = case_when(is.na(average_residents_per_member)~ "Not targeting",
+                               TRUE ~ paste0(
+                                 as.character(rank),
+                                 case_when(rank %in% c("1", "21") ~ "st",
+                                           rank %in% c("2", "22") ~ "nd",
+                                           rank %in% c("3", "23") ~ "rd",
+                                           TRUE ~ "th")
+                               )),
+         rank_word = case_when(rank_word == "Not targeting" ~ "Not targeting",
+                               rank_word == "1st" ~ "Most",
+                               rank_word == "18th" ~ "Least",
+                               rank_word == "17th" ~ "2nd least",
+                               TRUE ~ paste0(rank_word, " most")))
+
+# Save data
+qs_savem(Wards,
+         LSOA,
+         Election23Results,
+         M2W,
+         file = "C:/RProjects/MedwayMap/app/data/appData.qs2")

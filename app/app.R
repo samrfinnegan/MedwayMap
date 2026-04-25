@@ -19,8 +19,7 @@ library(reactablefmtr)
 
 # Set options and read in data -------------------------------------------------
 options(shiny.autoreload = TRUE)
-qs_readm("./data/MapData.qs2")
-qs_readm("./data/Election23Results.qs2")
+qs_readm("./data/appData.qs2")
 
 # UI ---------------------------------------------------------------------------
 
@@ -33,95 +32,24 @@ ui <- page_fillable(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
   ),
   
-  
-  # Set window title
-  window_title = "Medway Map",
-  
-  # Define what goes in the sidebar
-  # sidebar = sidebar(
-  #   width = 350,
-  #   radioGroupButtons(inputId = "select_MapView",
-  #                     label = "Select view:",
-  #                     choices = c("2023 Results", "Projection"))
-  # ),
   sidebar = NULL,
   
   # Main body
   # Map
   div(class = "header-block",
+      style = "display: flex; flex-direction: column;",
       h2("MEDWAY GREEN PARTY LOCAL ELECTION MAP")),
   card(id = "map_card",
+       height = "500px",
+       fill = FALSE,
        card_body(
-         leafletOutput(outputId = "Map", height = 600)
-       ),
-       full_screen = TRUE
+         leafletOutput(outputId = "Map", height = 500)
+       )
   ),
   
-  
-  # Quick stat cards
-  layout_column_wrap(
-    width = 1/3,
-    
-    div(class = "stat1",
-        card(
-          card_header("Ward"),
-          card_body(textOutput("Ward"))
-        )
-    ),
-    
-    div(class = "stat2",
-        card(
-          card_header("Electors (2023)"),
-          card_body(textOutput("Electors"))
-        )
-    ),
-    
-    div(div = "stats3",
-        card(
-          card_header("Turnout (2023)"),
-          card_body(textOutput("Turnout"))
-        )
-    )
-  ),
-  
-  
-  # Results table cards
-  layout_column_wrap(
-    width = 1/2,
-    
-    # Election 2023 results
-    div(class = "table1",
-        card(id = "election_result_23",
-             card_header("Election Results (2023)"),
-             card_body(
-               height = 400,
-               hidden(radioGroupButtons(inputId = "select_view_past",
-                                        label = "",
-                                        choices = c("PARTY", "COUNCILLORS"),
-                                        selected = "PARTY")),
-               uiOutput(outputId = "PastTable")
-             ),
-        )
-    ),
-    
-    # Projected results
-    div(class = "table2",
-        card(id = "projected_result_26",
-             card_header("Projected Result (2026)"),
-             card_body(
-               height = 400,
-               hidden(radioGroupButtons(inputId = "select_view_future",
-                                        label = "",
-                                        choices = c("PARTY", "COUNCILLORS"),
-                                        selected = "PARTY")),
-               uiOutput(outputId = "FutureTable")
-             )
-        )
-    )
-    
-    
-  )
-  
+  div(class = "stats",
+      style = "display: flex; flex-direction: column;",
+      uiOutput("StatsUI"))
 )
 
 
@@ -132,15 +60,30 @@ server <- function(input, output, session) {
   # Render the map
   output$Map <- renderLeaflet({
     
+    bbox <- sf::st_bbox(Wards)
     
-    leaflet(Wards) |>
+    leaflet(Wards,
+            options = leafletOptions(
+              zoomControl      = FALSE,
+              dragging         = FALSE,
+              scrollWheelZoom  = FALSE,
+              doubleClickZoom  = FALSE,
+              boxZoom          = FALSE,
+              keyboard         = FALSE)) |>
       addProviderTiles("CartoDB", group = "CartoDB") |>
       addPolygons(layerId = ~wd25nm,
                   label = ~wd25nm,
+                  labelOptions = labelOptions(textsize = "16px",
+                                              style = list("font-family" = 'Manrope')),
                   weight = 1,
                   color = "#ffffff",
                   fillColor = "#00643b",
-                  fillOpacity = 0.7)
+                  fillOpacity = 0.7) |>
+      setView(
+        lng  = (bbox[["xmin"]] + bbox[["xmax"]]) / 2,  # center of bounding box
+        lat  = (bbox[["ymin"]] + bbox[["ymax"]]) / 2,
+        zoom = 11  # adjust this
+      )
     
     
   })
@@ -149,19 +92,26 @@ server <- function(input, output, session) {
   clickedWard <- reactiveVal(NULL)
   
   
-  # Update the clickedWard and show the clicked ward on the map
+  # observeEvent for map clip
   observeEvent(input$Map_shape_click, {
+    
+    # Update the reactive value to store ward id
     click <- input$Map_shape_click
     clickedWard(click$id)
+    
+    # Show radioGroupButton for party/councillors - hidden by default
     shinyjs::show(id = "select_view_past")
     shinyjs::show(id = "select_view_future")
     
+    # leafletProxy updates map styling to show which is clicked
     leafletProxy("Map", session) |>
       
       # Reset all wards to default style
       addPolygons(data = Wards,
                   layerId = ~wd25nm,
                   label = ~wd25nm,
+                  labelOptions = labelOptions(textsize = "16px",
+                                              style = list("font-family" = 'Manrope')),
                   weight = 1,
                   color = "#ffffff",
                   fillColor = "#00643b",
@@ -171,6 +121,8 @@ server <- function(input, output, session) {
       addPolygons(data = Wards |> filter(wd25nm == click$id),
                   layerId = ~wd25nm,
                   label = ~wd25nm,
+                  labelOptions = labelOptions(textsize = "16px",
+                                              style = list("font-family" = 'Manrope')),
                   weight = 2,
                   color = "#ffffff",
                   fillColor = "#00a85a",
@@ -179,10 +131,134 @@ server <- function(input, output, session) {
   })
   
   
+  # Put everything else in a renderUI and don't show unless !is.null(clickedWard())
+  output$StatsUI <- renderUI({
+    
+    if (is.null(clickedWard())) {
+      
+      card(
+        card_body(
+          "Click a ward on the map to display data"
+        )
+      )
+      
+    } else {
+      
+      div(
+        id = "flex-column",
+        style = "display: flex; flex-direction: column",
+        
+        # Quick stat cards
+        layout_column_wrap(
+          width = 1/4,
+          
+          div(class = "stat1",
+              style = "margin-bottom: 0 !important;",
+              card(
+                card_header("Ward"),
+                card_body(textOutput("Ward"))
+              )
+          ),
+          
+          div(div = "stat2",
+              style = "margin-bottom: 0 !important;",
+              card(
+                card_header("Councillors"),
+                card_body(textOutput("NumCouncillors"))
+              )
+          ),
+          
+          div(class = "stat3",
+              style = "margin-bottom: 0 !important;",
+              card(
+                card_header("Electors (2023)"),
+                card_body(textOutput("Electors"))
+              )
+          ),
+          
+          div(div = "stat4",
+              style = "margin-bottom: 0 !important;",
+              card(
+                card_header("Turnout (2023)"),
+                card_body(textOutput("Turnout"))
+              )
+          )
+        ),
+        
+        # Members per population value card
+        div(
+          class = "residentspermember",
+          value_box(
+            title = "RESIDENTS PER MEMBER",
+            value = textOutput("ResidentsPerMemberValue"),
+            showcase = span(
+              style = "color: #00643b;",
+              bsicons::bs_icon("bullseye")
+            ),
+            showcase_layout = "left center"
+            
+          )
+        ),
+        
+        
+        # Results table cards
+        layout_column_wrap(
+          width = 1/2,
+          
+          # Election 2023 results
+          div(class = "table1",
+              card(id = "election_result_23",
+                   card_header("Election Results (2023)"),
+                   card_body(
+                     height = 400,
+                     hidden(radioGroupButtons(inputId = "select_view_past",
+                                              label = "",
+                                              choices = c("PARTY", "COUNCILLORS"),
+                                              selected = "PARTY")),
+                     uiOutput(outputId = "PastTable")
+                   ),
+              )
+          ),
+          
+          # Projected results
+          div(class = "table2",
+              card(id = "projected_result_26",
+                   card_header("Projected Result (2026)"),
+                   card_body(
+                     height = 400,
+                     hidden(radioGroupButtons(inputId = "select_view_future",
+                                              label = "",
+                                              choices = c("PARTY", "COUNCILLORS"),
+                                              selected = "PARTY")),
+                     uiOutput(outputId = "FutureTable")
+                   )
+              )
+          )
+          
+          
+        )
+      )
+      
+    }
+    
+  })
+  
+  
   # Ward name
   output$Ward <- renderText({
     req(!is.null(clickedWard()))
     clickedWard()
+  })
+  
+  # Number of councillors
+  output$NumCouncillors <- renderText({
+    req(!is.null(clickedWard()))
+    Election23Results |>
+      filter(wd25nm == clickedWard()) |>
+      select(number_councillors) |>
+      pull() |>
+      unique() |>
+      as.character()
   })
   
   # Electors
@@ -279,7 +355,7 @@ server <- function(input, output, session) {
                                minWidth = 70,
                                maxWidth = 100),
                 vote_percent = colDef(name = "VOTE SHARE",
-                                      minWidth = 200,
+                                      minWidth = 100,
                                       cell = data_bars(df,
                                                        text_color_ref = "text_colour",
                                                        brighten_text = FALSE,
@@ -311,7 +387,7 @@ server <- function(input, output, session) {
               defaultSorted = list(vote_percent = "desc"),
               columns = list(
                 councillors = colDef(name = "councillors",
-                                     minWidth = 100,
+                                     minWidth = 110,
                                      maxWidth = 300),
                 party = colDef(name = "PARTY",
                                minWidth = 120,
@@ -320,7 +396,7 @@ server <- function(input, output, session) {
                                minWidth = 70,
                                maxWidth = 100),
                 vote_percent = colDef(name = "VOTE SHARE",
-                                      minWidth = 200,
+                                      minWidth = 100,
                                       cell = data_bars(df,
                                                        text_color_ref = "text_colour",
                                                        brighten_text = FALSE,
@@ -403,7 +479,7 @@ server <- function(input, output, session) {
                                          maxWidth = 100,
                                          format = colFormat(digits = 0)),
                 projected_vote_percent = colDef(name = "VOTE SHARE",
-                                                minWidth = 200,
+                                                minWidth = 100,
                                                 cell = data_bars(df,
                                                                  text_color_ref = "text_colour",
                                                                  brighten_text = FALSE,
@@ -439,7 +515,7 @@ server <- function(input, output, session) {
               defaultSorted = list(projected_vote_percent = "desc"),
               columns = list(
                 councillors = colDef(name = "CANDIDATE",
-                                     minWidth = 100,
+                                     minWidth = 110,
                                      maxWidth = 300),
                 party = colDef(name = "PARTY",
                                minWidth = 120,
@@ -449,7 +525,7 @@ server <- function(input, output, session) {
                                          maxWidth = 100,
                                          format = colFormat(digits = 0)),
                 projected_vote_percent = colDef(name = "VOTE SHARE",
-                                                minWidth = 200,
+                                                minWidth = 100,
                                                 cell = data_bars(df,
                                                                  text_color_ref = "text_colour",
                                                                  brighten_text = FALSE,
@@ -464,6 +540,16 @@ server <- function(input, output, session) {
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )
+    
+  })
+  
+  
+  # Data for value_box
+  output$ResidentsPerMemberValue <- renderText({
+    
+    M2W |>
+      filter(wd25nm == clickedWard()) |>
+      pull(rank_word)
     
   })
   

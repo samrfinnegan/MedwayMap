@@ -66,6 +66,13 @@ h2 {
     --bs-gradient: none;
 }
 
+.bslib-page-fill {
+  row-gap: 0.5rem !important
+}
+
+.bslib-gap-spacing {
+  row-gap: 0.5rem !important;
+}
 
 .bslib-card {
   background: #ffffff;
@@ -76,9 +83,14 @@ h2 {
   text-decoration: none !important;
   color: #333333 !important;
   box-shadow: 0 14px 40px rgba(0,100,59,0.13);
-  border: 1.5px solid #00a85a;
+  border: 1.5px solid #00a85a !important;
   position: relative;
   height: auto;
+}
+
+
+.bslib-mb-spacing {
+    margin-bottom: 0rem !important
 }
 
 body {
@@ -91,4 +103,27 @@ body {
     background-color: #ffffff;
     -webkit-text-size-adjust: 100%;
     -webkit-tap-highlight-color: rgba(0,0,0,0);
+}
+
+#map_card {
+  height: 500px !important;
+  min-height: 500px;
+  flex-shrink; 0;
+}
+
+#flex-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;        /* controls spacing between all children uniformly */
+}
+
+/* Then zero out bslib's own gaps so only your gap applies */
+#flex-column .bslib-grid {
+  gap: 0.5rem !important;
+}
+
+#flex-column .value-box,
+#flex-column .bslib-card {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
 }
