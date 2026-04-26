@@ -30,6 +30,8 @@ ui <- page_fillable(
   # Add style sheet
   tags$head(
     tags$link(rel = "stylesheet", type = "text/css", href = "styles.css"),
+    tags$title("Medway Local Election Map"),
+    tags$link(rel = "icon", type = "image/png", href = "favicon.png")
   ),
   
   sidebar = NULL,
@@ -43,7 +45,8 @@ ui <- page_fillable(
        height = "500px",
        fill = FALSE,
        card_body(
-         leafletOutput(outputId = "Map", height = 500)
+         leafletOutput(outputId = "Map", height = 500),
+         p("Note: Grey wards are those where we have yet to obtain canvassing data")
        )
   ),
   
@@ -77,7 +80,7 @@ server <- function(input, output, session) {
                                               style = list("font-family" = 'Manrope')),
                   weight = 1,
                   color = "#ffffff",
-                  fillColor = "#00643b",
+                  fillColor = ~fill_colour,
                   fillOpacity = 0.7) |>
       setView(
         lng  = (bbox[["xmin"]] + bbox[["xmax"]]) / 2,  # center of bounding box
@@ -114,7 +117,7 @@ server <- function(input, output, session) {
                                               style = list("font-family" = 'Manrope')),
                   weight = 1,
                   color = "#ffffff",
-                  fillColor = "#00643b",
+                  fillColor = ~fill_colour,
                   fillOpacity = 0.7) |>
       
       # Highlight the clicked ward
@@ -125,7 +128,7 @@ server <- function(input, output, session) {
                                               style = list("font-family" = 'Manrope')),
                   weight = 2,
                   color = "#ffffff",
-                  fillColor = "#00a85a",
+                  fillColor = ~fill_click_colour,
                   fillOpacity = 0.9)
     
   })
@@ -185,22 +188,6 @@ server <- function(input, output, session) {
           )
         ),
         
-        # Members per population value card
-        div(
-          class = "residentspermember",
-          value_box(
-            title = "Residents per member",
-            value = textOutput("ResidentsPerMemberValue"),
-            showcase = span(
-              style = "color: #00643b;",
-              bsicons::bs_icon("bullseye")
-            ),
-            showcase_layout = "left center"
-            
-          )
-        ),
-        
-        
         # Canvassing results value card
         div(
           class = "canvassing score",
@@ -210,6 +197,21 @@ server <- function(input, output, session) {
             showcase = span(
               style = "color: #00643b;",
               bsicons::bs_icon("chat")
+            ),
+            showcase_layout = "left center"
+            
+          )
+        ),
+        
+        # Members per population value card
+        div(
+          class = "residentspermember",
+          value_box(
+            title = "Residents per member",
+            value = textOutput("ResidentsPerMemberValue"),
+            showcase = span(
+              style = "color: #00643b;",
+              bsicons::bs_icon("bullseye")
             ),
             showcase_layout = "left center"
             
@@ -231,6 +233,7 @@ server <- function(input, output, session) {
                                        label = "",
                                        choices = c("PARTY", "COUNCILLORS"),
                                        selected = "PARTY"),
+                     p("This displays the votes and vote percentages for each party, in this ward, for the local elections, 2023."),
                      uiOutput(outputId = "PastTable")
                    ),
               )
@@ -239,13 +242,16 @@ server <- function(input, output, session) {
           # Projected results
           div(class = "table2",
               card(id = "projected_result_26",
-                   card_header("Projected Result (2026)"),
+                   card_header("Projected Result (2027)"),
                    card_body(
                      height = "100%",
                      radioGroupButtons(inputId = "select_view_future",
                                        label = "",
                                        choices = c("PARTY", "COUNCILLORS"),
                                        selected = "PARTY"),
+                     p(paste0("This is a projection for the 2027 local elections, based on YouGov polling data for March 2026. ",
+                              "The projection presumes the same number of votes as 2023, to ensure parity. ",
+                              "Consequently it does not include Reform UK in many wards.")),
                      uiOutput(outputId = "FutureTable")
                    )
               )
@@ -257,7 +263,7 @@ server <- function(input, output, session) {
         # ProjectionsSF
         div(class = "samprojections",
             card(id = "projected_result_26_sf",
-                 card_header("Projected Result (2026, population-based)"),
+                 card_header("Projected Result (2027, population-based)"),
                  card_body(
                    height = "100%",
                    htmlOutput("SFProjectionsExplainer"),
@@ -485,6 +491,7 @@ server <- function(input, output, session) {
     
   })
   
+  
   # Projected election results table - party
   output$ProjectedTableParty <- renderReactable({
     
@@ -629,10 +636,6 @@ server <- function(input, output, session) {
                 party = colDef(name = "PARTY",
                                minWidth = 120,
                                maxWidth = 300),
-                votes = colDef(name = "VOTES",
-                               minWidth = 70,
-                               maxWidth = 100,
-                               format = colFormat(digits = 0)),
                 votes_percent = colDef(name = "VOTE SHARE",
                                        minWidth = 100,
                                        cell = data_bars(df,
@@ -646,6 +649,7 @@ server <- function(input, output, session) {
                                                         fill_color_ref = "colour",
                                                         align_bars = "left",
                                                         number_fmt = scales::percent_format(accuracy = 0.1))),
+                votes = colDef(show = FALSE),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE),
                 wd25nm = colDef(show = FALSE))
@@ -661,7 +665,8 @@ server <- function(input, output, session) {
       "<p>This projection uses population estimates for Medway, estimates of 2023 voter",
       " turnout from the <a href = 'https://www.britishelectionstudy.com/data-object/wave-25-of-the-2014-2023-british-election-study-internet-panel/' target = '_blank'>British Election Study<a/>,",
       " and voting intention as of January 2026 from <a href = 'https://yougov.com/en-gb/articles/53923-how-would-britain-vote-at-the-start-of-2026' target = '_blank'>YouGov</a>. ",
-      " These data are split by gender and age. We have then assumed that people turn out as they did in 2023 and vote in line with YouGov's voting intention for their age and gender.</p>"
+      " These data are split by gender and age. We have then assumed that people turn out as they did in 2023 and vote in line with YouGov's voting intention for their age and gender.</p>",
+      "<p>Please note that overall voting intention has shifted a bit since this January 2026 poll.</p>"
     )
     
   })

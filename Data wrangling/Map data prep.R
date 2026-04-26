@@ -297,6 +297,19 @@ ProjectionSF <- Pops |>
                             party == "Lib Dems" ~ "#FF6400"),
          text_colour = "#000000")
 
+
+# Before saving, I want to add colours columns to the map data
+# If we have canvassing data then we'll use "#00643b" and "#00a85a" on click
+# If not, we'll use "#333333" and "#999999" on click
+Wards <- Wards |>
+  left_join(Canvas) |>
+  mutate(fill_colour = case_when(is.na(revised_average) ~ "#999999",
+                                 TRUE ~ "#00a85a"),
+         fill_click_colour = case_when(is.na(revised_average) ~ "#333333",
+                                       TRUE ~ "#00643b")) |>
+  select(-revised_average)
+
+
 # Save data
 qs_savem(Wards,
          LSOA,
