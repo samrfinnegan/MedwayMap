@@ -189,11 +189,27 @@ server <- function(input, output, session) {
         div(
           class = "residentspermember",
           value_box(
-            title = "RESIDENTS PER MEMBER",
+            title = "Residents per member",
             value = textOutput("ResidentsPerMemberValue"),
             showcase = span(
               style = "color: #00643b;",
               bsicons::bs_icon("bullseye")
+            ),
+            showcase_layout = "left center"
+            
+          )
+        ),
+        
+        
+        # Canvassing results value card
+        div(
+          class = "canvassing score",
+          value_box(
+            title = html("Canvassing score - How likely are you to vote Green? <br> 1 = Definitely, 5 = Definitely not"),
+            value = textOutput("CanvassingScore"),
+            showcase = span(
+              style = "color: #00643b;",
+              bsicons::bs_icon("chat")
             ),
             showcase_layout = "left center"
             
@@ -211,10 +227,10 @@ server <- function(input, output, session) {
                    card_header("Election Results (2023)"),
                    card_body(
                      height = 400,
-                     hidden(radioGroupButtons(inputId = "select_view_past",
-                                              label = "",
-                                              choices = c("PARTY", "COUNCILLORS"),
-                                              selected = "PARTY")),
+                     radioGroupButtons(inputId = "select_view_past",
+                                       label = "",
+                                       choices = c("PARTY", "COUNCILLORS"),
+                                       selected = "PARTY"),
                      uiOutput(outputId = "PastTable")
                    ),
               )
@@ -226,16 +242,28 @@ server <- function(input, output, session) {
                    card_header("Projected Result (2026)"),
                    card_body(
                      height = 400,
-                     hidden(radioGroupButtons(inputId = "select_view_future",
-                                              label = "",
-                                              choices = c("PARTY", "COUNCILLORS"),
-                                              selected = "PARTY")),
+                     radioGroupButtons(inputId = "select_view_future",
+                                       label = "",
+                                       choices = c("PARTY", "COUNCILLORS"),
+                                       selected = "PARTY"),
                      uiOutput(outputId = "FutureTable")
                    )
               )
           )
           
-          
+        ),
+        
+        
+        # ProjectionsSF
+        div(class = "samprojections",
+            card(id = "projected_result_26_sf",
+                 card_header("Projected Result (2026, population-based)"),
+                 card_body(
+                   height = 400,
+                   htmlOutput("SFProjectionsExplainer"),
+                   reactableOutput("SFProjectionsTable")
+                 )
+            )
         )
       )
       
@@ -423,7 +451,14 @@ server <- function(input, output, session) {
     
     Election23Results |>
       filter(wd25nm == clickedWard()) |>
-      select(councillors, party, projected_votes, projected_vote_percent, colour, text_colour) |>
+      select(councillors,
+             party,
+             projected_votes_number_votes_cast_2023,
+             projected_vote_percent,
+             percent_projected_vote_share_per_party,
+             projected_vote_share_per_party,
+             colour,
+             text_colour) |>
       arrange(desc(projected_vote_percent))
     
   })
@@ -458,10 +493,15 @@ server <- function(input, output, session) {
     )
     
     df <- FutureResults() |>
+      select(party,
+             projected_vote_share_per_party,
+             percent_projected_vote_share_per_party,
+             colour,
+             text_colour) |>
       group_by(party, colour, text_colour) |>
-      summarise(projected_votes = sum(projected_votes)) |>
-      ungroup() |>
-      mutate(projected_vote_percent = projected_votes/sum(projected_votes))
+      summarise(projected_vote_share_per_party = sum(projected_vote_share_per_party),
+                percent_projected_vote_share_per_party = sum(percent_projected_vote_share_per_party)) |>
+      ungroup()
     
     
     reactable(df,
@@ -469,28 +509,28 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(projected_vote_percent = "desc"),
+              defaultSorted = list(percent_projected_vote_share_per_party = "desc"),
               columns = list(
                 party = colDef(name = "PARTY",
                                minWidth = 120,
                                maxWidth = 300),
-                projected_votes = colDef(name = "VOTES",
-                                         minWidth = 70,
-                                         maxWidth = 100,
-                                         format = colFormat(digits = 0)),
-                projected_vote_percent = colDef(name = "VOTE SHARE",
-                                                minWidth = 100,
-                                                cell = data_bars(df,
-                                                                 text_color_ref = "text_colour",
-                                                                 brighten_text = FALSE,
-                                                                 text_position = "inside-base",
-                                                                 bold_text = TRUE,
-                                                                 max_value = 1,
-                                                                 bar_height = 25,
-                                                                 background = "#ffffff",
-                                                                 fill_color_ref = "colour",
-                                                                 align_bars = "left",
-                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
+                projected_vote_share_per_party = colDef(name = "VOTES",
+                                                        minWidth = 70,
+                                                        maxWidth = 100,
+                                                        format = colFormat(digits = 0)),
+                percent_projected_vote_share_per_party = colDef(name = "VOTE SHARE",
+                                                                minWidth = 100,
+                                                                cell = data_bars(df,
+                                                                                 text_color_ref = "text_colour",
+                                                                                 brighten_text = FALSE,
+                                                                                 text_position = "inside-base",
+                                                                                 bold_text = TRUE,
+                                                                                 max_value = 1,
+                                                                                 bar_height = 25,
+                                                                                 background = "#ffffff",
+                                                                                 fill_color_ref = "colour",
+                                                                                 align_bars = "left",
+                                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )
@@ -504,7 +544,13 @@ server <- function(input, output, session) {
       need(!is.null(clickedWard()), "Click a ward to display data")
     )
     
-    df <- FutureResults()
+    df <- FutureResults() |>
+      select(councillors,
+             party,
+             projected_votes_number_votes_cast_2023,
+             projected_vote_percent,
+             colour,
+             text_colour)
     
     
     reactable(df,
@@ -520,10 +566,10 @@ server <- function(input, output, session) {
                 party = colDef(name = "PARTY",
                                minWidth = 120,
                                maxWidth = 300),
-                projected_votes = colDef(name = "VOTES",
-                                         minWidth = 70,
-                                         maxWidth = 100,
-                                         format = colFormat(digits = 0)),
+                projected_votes_number_votes_cast_2023 = colDef(name = "VOTES",
+                                                                minWidth = 70,
+                                                                maxWidth = 100,
+                                                                format = colFormat(digits = 0)),
                 projected_vote_percent = colDef(name = "VOTE SHARE",
                                                 minWidth = 100,
                                                 cell = data_bars(df,
@@ -544,12 +590,79 @@ server <- function(input, output, session) {
   })
   
   
-  # Data for value_box
+  # Data for residents per member value_box
   output$ResidentsPerMemberValue <- renderText({
     
     M2W |>
       filter(wd25nm == clickedWard()) |>
       pull(rank_word)
+    
+  })
+  
+  
+  # Data for canvassing value_box
+  output$CanvassingScore <- renderText({
+    
+    Score <- Canvas |>
+      filter(wd25nm == clickedWard()) |>
+      pull(revised_average)
+    
+    Text <- case_when(is.na(Score) ~ "No data yet",
+                      TRUE ~ paste0("Average score: ", round(Score, 2)))
+    
+  })
+  
+  
+  # Sam Projections Reactable
+  output$SFProjectionsTable <- renderReactable({
+    
+    df <- ProjectionSF |>
+      filter(wd25nm == clickedWard())
+    
+    reactable(df,
+              style = list(fontFamily = "Manrope", fontSize = "1rem"),
+              highlight = TRUE,
+              borderless = TRUE,
+              defaultPageSize = nrow(df),
+              defaultSorted = list(votes_percent = "desc"),
+              columns = list(
+                party = colDef(name = "PARTY",
+                               minWidth = 120,
+                               maxWidth = 300),
+                votes = colDef(name = "VOTES",
+                               minWidth = 70,
+                               maxWidth = 100,
+                               format = colFormat(digits = 0)),
+                votes_percent = colDef(name = "VOTE SHARE",
+                                       minWidth = 100,
+                                       cell = data_bars(df,
+                                                        text_color_ref = "text_colour",
+                                                        brighten_text = FALSE,
+                                                        text_position = "inside-base",
+                                                        bold_text = TRUE,
+                                                        max_value = 1,
+                                                        bar_height = 25,
+                                                        background = "#ffffff",
+                                                        fill_color_ref = "colour",
+                                                        align_bars = "left",
+                                                        number_fmt = scales::percent_format(accuracy = 0.1))),
+                colour = colDef(show = FALSE),
+                text_colour = colDef(show = FALSE),
+                wd25nm = colDef(show = FALSE))
+    )
+    
+  })
+  
+  
+  # Sam projections table explainer
+  output$SFProjectionsExplainer <- renderText({
+    
+    paste0(
+      "<p>This projection uses population estimates for Medway, estimates of 2023 voter",
+      " turnout from the <a href = 'https://www.britishelectionstudy.com/data-object/wave-25-of-the-2014-2023-british-election-study-internet-panel/' target = '_blank'>British Election Study<a/>,",
+      " and voting intention as of January 2026 from <a href = 'https://yougov.com/en-gb/articles/53923-how-would-britain-vote-at-the-start-of-2026' target = '_blank'>YouGov</a>. ",
+      " These data are split by gender and age. We have then assumed that people turn out as they did in 2023 and vote in line with YouGov's voting intention for their age and gender.</p>"
+    )
     
   })
   

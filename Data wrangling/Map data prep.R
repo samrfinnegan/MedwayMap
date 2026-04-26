@@ -184,9 +184,124 @@ M2W <- read.xlsx("./Data/Stats/Member to Ward Target Analysis - 190326.xlsx",
                                rank_word == "17th" ~ "2nd least",
                                TRUE ~ paste0(rank_word, " most")))
 
+
+# Read in canvassing data ------------------------------------------------------
+
+Canvas <- read.csv("./Data/Stats/Canvasing ratings 260426.csv") |>
+  clean_names() |>
+  select(ward, revised_average) |>
+  rename(wd25nm = ward) |>
+  right_join(NumCouncillorsLookup) |>
+  select(-number_councillors)
+
+# Projecting 2026 vote based on national polling -------------------------------
+
+# YouGov polling data from https://yougov.com/en-gb/articles/53923-how-would-britain-vote-at-the-start-of-2026
+YouGov <- read.csv("./Data/Stats/YouGovGenderAge.csv") |>
+  mutate(across(3:8, ~ . / 100))
+
+# British Election Survey has turnout data by age and gender
+# https://www.britishelectionstudy.com/data-object/wave-25-of-the-2014-2023-british-election-study-internet-panel/
+BES <- haven::read_dta("./Data/Stats/BES2019_W25_v30.1.dta") |>
+  select(age, gender, localTurnoutRetro) |>
+  mutate(gender = case_when(gender == 1 ~ "Male",
+                            gender == 2 ~ "Female"),
+         localTurnoutRetro = case_when(is.na(localTurnoutRetro) ~ 0,
+                                       localTurnoutRetro == 1 ~ 1,
+                                       TRUE ~ NA),
+         ageGroup = case_when(age <= 24 ~ "18-24",
+                              age >= 25 & age <= 49 ~ "25-49",
+                              age >= 50 & age <= 64 ~ "50-64",
+                              age >= 65 ~ "65+")) |>
+  filter(!is.na(localTurnoutRetro)) |>
+  group_by(ageGroup, gender) |>
+  summarise(turnout = mean(localTurnoutRetro))
+
+# Now we need population by gender and age, which we got from nomis
+# This is 2024 population, based on 2021-based population projections
+# Males
+popsM <- read.xlsx("./Data/Stats/nomis_2026_04_26_014535.xlsx",
+                   rows = c(7:98)) |> 
+  pivot_longer(cols = 2:25,
+               names_to = "ward",
+               values_to = "population") |>
+  mutate(age = as.numeric(gsub("[^0-9]", "", Age)),
+         ageGroup = case_when(age <= 24 ~ "18-24",
+                              age >= 25 & age <= 49 ~ "25-49",
+                              age >= 50 & age <= 64 ~ "50-64",
+                              age >= 65 ~ "65+"),
+         ward = gsub("\\.", " ", ward),
+         gender = "Male") |>
+  group_by(ward, gender, ageGroup) |>
+  summarise(population = sum(population)) |>
+  ungroup() |>
+  mutate(wd25nm = case_when(ward == "All Saints (Medway)" ~ "All Saints",
+                            ward == "Princes Park (Medway)" ~ "Princes Park",
+                            ward == "Watling (Medway)" ~ "Watling",
+                            TRUE ~ ward)) |>
+  select(-ward)
+
+# Females
+popsF <- read.xlsx("./Data/Stats/nomis_2026_04_26_014535.xlsx",
+                   rows = 108:199) |>
+  pivot_longer(cols = 2:25,
+               names_to = "ward",
+               values_to = "population") |>
+  mutate(age = as.numeric(gsub("[^0-9]", "", Age)),
+         ageGroup = case_when(age <= 24 ~ "18-24",
+                              age >= 25 & age <= 49 ~ "25-49",
+                              age >= 50 & age <= 64 ~ "50-64",
+                              age >= 65 ~ "65+"),
+         ward = gsub("\\.", " ", ward),
+         gender = "Female") |>
+  group_by(ward, gender, ageGroup) |>
+  summarise(population = sum(population)) |>
+  ungroup() |>
+  mutate(wd25nm = case_when(ward == "All Saints (Medway)" ~ "All Saints",
+                            ward == "Princes Park (Medway)" ~ "Princes Park",
+                            ward == "Watling (Medway)" ~ "Watling",
+                            TRUE ~ ward)) |>
+  select(-ward)
+
+
+# Join pops
+Pops <- rbind(popsF, popsM)
+rm(popsM, popsF)
+
+# Join BES, YouGov, and Pops and calculate projection
+ProjectionSF <- Pops |>
+  left_join(BES, by = c("gender", "ageGroup")) |>
+  left_join(YouGov, by = c("gender", "ageGroup")) |>
+  mutate(voters = population * turnout,
+         Green_votes = voters * Green,
+         Labour_votes = voters * Labour,
+         `Lib Dems_votes` = voters * `Liberal.Democrat`,
+         Other_votes = voters * Other,
+         Conservative_votes = voters * Conservative,
+         Reform_votes = voters * `Reform.UK`) |>
+  select(c(4, 1, 2, 13:18)) |>
+  pivot_longer(cols = 4:9,
+               names_to ="party",
+               names_transform = ~gsub("_votes", "", .),
+               values_to = "votes") |>
+  group_by(wd25nm, party) |>
+  summarise(votes = sum(votes)) |>
+  group_by(wd25nm) |>
+  mutate(votes_percent = votes/sum(votes)) |>
+  ungroup() |>
+  mutate(colour = case_when(party == "Other" ~ "#ABABAB",
+                            party == "Conservative" ~ "#0087DC",
+                            party == "Labour" ~ "#E4003B",
+                            party == "Reform" ~ "#12B6CF",
+                            party == "Green" ~ "#00643B",
+                            party == "Lib Dems" ~ "#FF6400"),
+         text_colour = "#000000")
+
 # Save data
 qs_savem(Wards,
          LSOA,
          Election23Results,
          M2W,
+         Canvas,
+         ProjectionSF,
          file = "C:/RProjects/MedwayMap/app/data/appData.qs2")

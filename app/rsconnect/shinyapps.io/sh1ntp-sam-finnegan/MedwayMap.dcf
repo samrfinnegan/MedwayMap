@@ -5,7 +5,7 @@ account: sh1ntp-sam-finnegan
 server: shinyapps.io
 hostUrl: https://api.shinyapps.io/v1
 appId: 17195646
-bundleId: 11905824
+bundleId: 11907235
 url: https://sh1ntp-sam-finnegan.shinyapps.io/MedwayMap/
 version: 1
 asMultiple: FALSE
