@@ -226,7 +226,7 @@ server <- function(input, output, session) {
               card(id = "election_result_23",
                    card_header("Election Results (2023)"),
                    card_body(
-                     height = 400,
+                     height = "100%",
                      radioGroupButtons(inputId = "select_view_past",
                                        label = "",
                                        choices = c("PARTY", "COUNCILLORS"),
@@ -241,7 +241,7 @@ server <- function(input, output, session) {
               card(id = "projected_result_26",
                    card_header("Projected Result (2026)"),
                    card_body(
-                     height = 400,
+                     height = "100%",
                      radioGroupButtons(inputId = "select_view_future",
                                        label = "",
                                        choices = c("PARTY", "COUNCILLORS"),
@@ -259,7 +259,7 @@ server <- function(input, output, session) {
             card(id = "projected_result_26_sf",
                  card_header("Projected Result (2026, population-based)"),
                  card_body(
-                   height = 400,
+                   height = "100%",
                    htmlOutput("SFProjectionsExplainer"),
                    reactableOutput("SFProjectionsTable")
                  )
