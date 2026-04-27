@@ -111,6 +111,10 @@ body {
     -webkit-tap-highlight-color: rgba(0,0,0,0);
 }
 
+#election_result_23 {
+  height: 100%;
+}
+
 #map_card {
   height: 500px !important;
   min-height: 500px;

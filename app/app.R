@@ -222,39 +222,36 @@ server <- function(input, output, session) {
         # Results table cards
         layout_column_wrap(
           width = 1/2,
+          heights_equal = "row",
           
           # Election 2023 results
-          div(class = "table1",
-              card(id = "election_result_23",
-                   card_header("Election Results (2023)"),
-                   card_body(
-                     height = "100%",
-                     radioGroupButtons(inputId = "select_view_past",
-                                       label = "",
-                                       choices = c("PARTY", "COUNCILLORS"),
-                                       selected = "PARTY"),
-                     p("This displays the votes and vote percentages for each party, in this ward, for the local elections, 2023."),
-                     uiOutput(outputId = "PastTable")
-                   ),
-              )
+          card(id = "election_result_23",
+               card_header("Election Results (2023)"),
+               card_body(
+                 height = "100%",
+                 radioGroupButtons(inputId = "select_view_past",
+                                   label = "",
+                                   choices = c("PARTY", "COUNCILLORS"),
+                                   selected = "PARTY"),
+                 p("This displays the votes and vote percentages for each party, in this ward, for the local elections, 2023."),
+                 uiOutput(outputId = "PastTable")
+               ),
           ),
           
           # Projected results
-          div(class = "table2",
-              card(id = "projected_result_26",
-                   card_header("Projected Result (2027)"),
-                   card_body(
-                     height = "100%",
-                     radioGroupButtons(inputId = "select_view_future",
-                                       label = "",
-                                       choices = c("PARTY", "COUNCILLORS"),
-                                       selected = "PARTY"),
-                     p(paste0("This is a projection for the 2027 local elections, based on YouGov polling data for March 2026. ",
-                              "The projection presumes the same number of votes as 2023, to ensure parity. ",
-                              "Consequently it does not include Reform UK in many wards.")),
-                     uiOutput(outputId = "FutureTable")
-                   )
-              )
+          card(id = "projected_result_26",
+               card_header("Projected Result (2027)"),
+               card_body(
+                 height = "100%",
+                 radioGroupButtons(inputId = "select_view_future",
+                                   label = "",
+                                   choices = c("PARTY", "COUNCILLORS"),
+                                   selected = "PARTY"),
+                 p(paste0("This is a projection for the 2027 local elections, based on YouGov polling data for March 2026. ",
+                          "The projection presumes the same number of votes as 2023, to ensure parity. ",
+                          "Consequently it does not include Reform UK in many wards.")),
+                 uiOutput(outputId = "FutureTable")
+               )
           )
           
         ),
