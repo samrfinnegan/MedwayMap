@@ -249,7 +249,8 @@ server <- function(input, output, session) {
                                    selected = "PARTY"),
                  p(paste0("This is a projection for the 2027 local elections, based on YouGov polling data for March 2026. ",
                           "The projection presumes the same number of votes as 2023, to ensure parity. ",
-                          "Consequently it does not include Reform UK in many wards.")),
+                          "Consequently it does not include Reform UK in many wards. ",
+                          "We would therefore expect a significantly different result to the population-based projection below.")),
                  uiOutput(outputId = "FutureTable")
                )
           )
@@ -390,7 +391,7 @@ server <- function(input, output, session) {
                                       cell = data_bars(df,
                                                        text_color_ref = "text_colour",
                                                        brighten_text = FALSE,
-                                                       text_position = "inside-base",
+                                                       text_position = "outside-end",
                                                        bold_text = TRUE,
                                                        max_value = 1,
                                                        bar_height = 25,
@@ -431,7 +432,7 @@ server <- function(input, output, session) {
                                       cell = data_bars(df,
                                                        text_color_ref = "text_colour",
                                                        brighten_text = FALSE,
-                                                       text_position = "inside-base",
+                                                       text_position = "outside-end",
                                                        bold_text = TRUE,
                                                        max_value = 1,
                                                        bar_height = 25,
@@ -457,12 +458,10 @@ server <- function(input, output, session) {
       select(councillors,
              party,
              projected_votes_number_votes_cast_2023,
-             projected_vote_percent,
-             percent_projected_vote_share_per_party,
-             projected_vote_share_per_party,
+             projected_votes_per_party,
+             projected_vote_share_per_candidate,
              colour,
-             text_colour) |>
-      arrange(desc(projected_vote_percent))
+             text_colour)
     
   })
   
@@ -498,13 +497,13 @@ server <- function(input, output, session) {
     
     df <- FutureResults() |>
       select(party,
-             projected_vote_share_per_party,
-             percent_projected_vote_share_per_party,
+             projected_votes_per_party,
+             projected_vote_share_per_candidate,
              colour,
              text_colour) |>
       group_by(party, colour, text_colour) |>
-      summarise(projected_vote_share_per_party = sum(projected_vote_share_per_party),
-                percent_projected_vote_share_per_party = sum(percent_projected_vote_share_per_party)) |>
+      summarise(projected_votes_per_party = sum(projected_votes_per_party),
+                projected_vote_share_per_party = sum(projected_vote_share_per_candidate)) |>
       ungroup()
     
     
@@ -513,28 +512,28 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(percent_projected_vote_share_per_party = "desc"),
+              defaultSorted = list(projected_vote_share_per_party = "desc"),
               columns = list(
                 party = colDef(name = "PARTY",
                                minWidth = 120,
                                maxWidth = 300),
-                projected_vote_share_per_party = colDef(name = "VOTES",
-                                                        minWidth = 70,
-                                                        maxWidth = 100,
-                                                        format = colFormat(digits = 0)),
-                percent_projected_vote_share_per_party = colDef(name = "VOTE SHARE",
-                                                                minWidth = 100,
-                                                                cell = data_bars(df,
-                                                                                 text_color_ref = "text_colour",
-                                                                                 brighten_text = FALSE,
-                                                                                 text_position = "inside-base",
-                                                                                 bold_text = TRUE,
-                                                                                 max_value = 1,
-                                                                                 bar_height = 25,
-                                                                                 background = "#ffffff",
-                                                                                 fill_color_ref = "colour",
-                                                                                 align_bars = "left",
-                                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
+                projected_votes_per_party = colDef(name = "VOTES",
+                                                   minWidth = 70,
+                                                   maxWidth = 100,
+                                                   format = colFormat(digits = 0)),
+                projected_vote_share_per_party = colDef(name = "VOTE SHARE",
+                                                        minWidth = 100,
+                                                        cell = data_bars(df,
+                                                                         text_color_ref = "text_colour",
+                                                                         brighten_text = FALSE,
+                                                                         text_position = "outside-end",
+                                                                         bold_text = TRUE,
+                                                                         max_value = 1,
+                                                                         bar_height = 25,
+                                                                         background = "#ffffff",
+                                                                         fill_color_ref = "colour",
+                                                                         align_bars = "left",
+                                                                         number_fmt = scales::percent_format(accuracy = 0.1))),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )
@@ -552,7 +551,7 @@ server <- function(input, output, session) {
       select(councillors,
              party,
              projected_votes_number_votes_cast_2023,
-             projected_vote_percent,
+             projected_vote_share_per_candidate,
              colour,
              text_colour)
     
@@ -562,7 +561,7 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(projected_vote_percent = "desc"),
+              defaultSorted = list(projected_vote_share_per_candidate = "desc"),
               columns = list(
                 councillors = colDef(name = "CANDIDATE",
                                      minWidth = 110,
@@ -574,19 +573,19 @@ server <- function(input, output, session) {
                                                                 minWidth = 70,
                                                                 maxWidth = 100,
                                                                 format = colFormat(digits = 0)),
-                projected_vote_percent = colDef(name = "VOTE SHARE",
-                                                minWidth = 100,
-                                                cell = data_bars(df,
-                                                                 text_color_ref = "text_colour",
-                                                                 brighten_text = FALSE,
-                                                                 text_position = "inside-base",
-                                                                 bold_text = TRUE,
-                                                                 max_value = 1,
-                                                                 bar_height = 25,
-                                                                 background = "#ffffff",
-                                                                 fill_color_ref = "colour",
-                                                                 align_bars = "left",
-                                                                 number_fmt = scales::percent_format(accuracy = 0.1))),
+                projected_vote_share_per_candidate = colDef(name = "VOTE SHARE",
+                                                            minWidth = 100,
+                                                            cell = data_bars(df,
+                                                                             text_color_ref = "text_colour",
+                                                                             brighten_text = FALSE,
+                                                                             text_position = "outside-end",
+                                                                             bold_text = TRUE,
+                                                                             max_value = 1,
+                                                                             bar_height = 25,
+                                                                             background = "#ffffff",
+                                                                             fill_color_ref = "colour",
+                                                                             align_bars = "left",
+                                                                             number_fmt = scales::percent_format(accuracy = 0.1))),
                 colour = colDef(show = FALSE),
                 text_colour = colDef(show = FALSE))
     )
@@ -638,7 +637,7 @@ server <- function(input, output, session) {
                                        cell = data_bars(df,
                                                         text_color_ref = "text_colour",
                                                         brighten_text = FALSE,
-                                                        text_position = "inside-base",
+                                                        text_position = "outside-end",
                                                         bold_text = TRUE,
                                                         max_value = 1,
                                                         bar_height = 25,
