@@ -457,9 +457,10 @@ server <- function(input, output, session) {
       filter(wd25nm == clickedWard()) |>
       select(councillors,
              party,
-             projected_votes_number_votes_cast_2023,
              projected_votes_per_party,
-             projected_vote_share_per_candidate,
+             projected_vote_percent_per_party_apportioned_by_candidate,
+             councillors_projected_vote_number,
+             councillors_projected_vote_percent,
              colour,
              text_colour)
     
@@ -498,12 +499,12 @@ server <- function(input, output, session) {
     df <- FutureResults() |>
       select(party,
              projected_votes_per_party,
-             projected_vote_share_per_candidate,
+             projected_vote_percent_per_party_apportioned_by_candidate,
              colour,
              text_colour) |>
       group_by(party, colour, text_colour) |>
       summarise(projected_votes_per_party = sum(projected_votes_per_party),
-                projected_vote_share_per_party = sum(projected_vote_share_per_candidate)) |>
+                projected_vote_share_per_party = sum(projected_vote_percent_per_party_apportioned_by_candidate)) |>
       ungroup()
     
     
@@ -550,8 +551,8 @@ server <- function(input, output, session) {
     df <- FutureResults() |>
       select(councillors,
              party,
-             projected_votes_number_votes_cast_2023,
-             projected_vote_share_per_candidate,
+             councillors_projected_vote_percent,
+             councillors_projected_vote_number,
              colour,
              text_colour)
     
@@ -561,7 +562,7 @@ server <- function(input, output, session) {
               highlight = TRUE,
               borderless = TRUE,
               defaultPageSize = nrow(df),
-              defaultSorted = list(projected_vote_share_per_candidate = "desc"),
+              defaultSorted = list(councillors_projected_vote_percent = "desc"),
               columns = list(
                 councillors = colDef(name = "CANDIDATE",
                                      minWidth = 110,
@@ -569,11 +570,11 @@ server <- function(input, output, session) {
                 party = colDef(name = "PARTY",
                                minWidth = 120,
                                maxWidth = 300),
-                projected_votes_number_votes_cast_2023 = colDef(name = "VOTES",
+                councillors_projected_vote_number = colDef(name = "VOTES",
                                                                 minWidth = 70,
                                                                 maxWidth = 100,
                                                                 format = colFormat(digits = 0)),
-                projected_vote_share_per_candidate = colDef(name = "VOTE SHARE",
+                councillors_projected_vote_percent = colDef(name = "VOTE SHARE",
                                                             minWidth = 100,
                                                             cell = data_bars(df,
                                                                              text_color_ref = "text_colour",

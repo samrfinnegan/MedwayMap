@@ -118,9 +118,7 @@ Election23Results <- read.xlsx("./Data/Stats/2023 results and national trend mod
                             party == "SDP" ~ "#6C2F56",
                             party == "CPA" ~ "#6142A3",
                             party == "Heritage" ~ "#0A00A5"),
-         text_colour = "#000000") |>
-  rename(projected_vote_share_per_party = percent_projected_vote_share_per_party_unapportioned,
-         projected_vote_share_per_candidate = percent_projected_vote_share_per_party_apportioned_by_candidate)
+         text_colour = "#000000") 
 
 # Read in the number of councillors in each ward
 # This can come from each sheet, so read in a loop
