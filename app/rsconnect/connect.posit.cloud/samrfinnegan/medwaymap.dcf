@@ -1,12 +1,10 @@
-name: medwaymap
+name: MedwayMap
 title: MedwayMap
 username: samrfinnegan
 account: samrfinnegan
 server: connect.posit.cloud
 hostUrl: https://api.connect.posit.cloud/v1
-appId: 01a125c8-040e-eda1-3195-e4cd84a3b4e7
+appId: 01a125c3-2a2c-3ce8-31b7-82e6709843c9
 bundleId:
-url: https://connect.posit.cloud/samrfinnegan/content/01a125c8-040e-eda1-3195-e4cd84a3b4e7
+url: https://connect.posit.cloud/samrfinnegan/content/01a125c3-2a2c-3ce8-31b7-82e6709843c9
 version: 1
-asMultiple: FALSE
-asStatic: FALSE
