@@ -60,6 +60,11 @@ ui <- page_fillable(
 
 server <- function(input, output, session) {
   
+  url <- paste0(
+    'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
+    '?key=', Sys.getenv('CARTO_BASEMAP_API_KEY') 
+  )
+  
   # Render the map
   output$Map <- renderLeaflet({
     
@@ -73,7 +78,7 @@ server <- function(input, output, session) {
               doubleClickZoom  = FALSE,
               boxZoom          = FALSE,
               keyboard         = FALSE)) |>
-      addProviderTiles("CartoDB", group = "CartoDB") |>
+      addTiles(urlTemplate = url) |>
       addPolygons(layerId = ~wd25nm,
                   label = ~wd25nm,
                   labelOptions = labelOptions(textsize = "16px",
@@ -207,7 +212,7 @@ server <- function(input, output, session) {
         div(
           class = "residentspermember",
           value_box(
-            title = "Residents per member",
+            title = "Members per resident",
             value = textOutput("ResidentsPerMemberValue"),
             showcase = span(
               style = "color: #00643b;",
